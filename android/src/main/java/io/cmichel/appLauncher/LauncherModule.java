@@ -40,7 +40,7 @@ public class LauncherModule extends ReactContextBaseJavaModule {
      */
   @ReactMethod
   public final void setAlarm(String id, double timestamp, boolean inexact) {
-    PendingIntent pendingIntent = createPendingIntent(id);
+    PendingIntent pendingIntent = createPendingIntent(id, PendingIntent.FLAG_UPDATE_CURRENT);
     long timestampLong = (long)timestamp; // React Bridge doesn't understand longs
     // get the alarm manager, and schedule an alarm that calls the receiver
     // We will use setAlarmClock because we want an indicator to show in the status bar.
@@ -62,11 +62,17 @@ public class LauncherModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public final void clearAlarm(String id) {
-    PendingIntent pendingIntent = createPendingIntent(id);
+    PendingIntent pendingIntent = createPendingIntent(id, null);
     getAlarmManager().cancel(pendingIntent);
+    pendingIntent.cancel();
   }
 
-  private PendingIntent createPendingIntent(String id) {
+  @ReactMethod
+  public final void isAlarmSet(String id, Promise promise) {
+    promise.resolve((createPendingIntent(id, PendingIntent.FLAG_NO_CREATE) != null));
+  }
+
+  private PendingIntent createPendingIntent(String id, Integer flags) {
     Context context = getReactApplicationContext();
     // create the pending intent
     Intent intent = new Intent(context, AlarmReceiver.class);
@@ -74,7 +80,11 @@ public class LauncherModule extends ReactContextBaseJavaModule {
     // public boolean filterEquals(Intent other) compare the action, data, type, package, component, and categories, but do not compare the extra
     intent.setData(Uri.parse("id://" + id));
     intent.setAction(String.valueOf(id));
-    return PendingIntent.getBroadcast(context, 0, intent, 0);
+
+    // remove?
+    // intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+
+    return PendingIntent.getBroadcast(context, 0, intent, flags == null ? 0 : flags);
   }
 
   private AlarmManager getAlarmManager() {
